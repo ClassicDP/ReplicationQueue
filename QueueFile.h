@@ -21,8 +21,9 @@ public:
     ~QueueFile();
 
     void putMsg(char *msg);
+    void takeMsg(uint32_t ptr);
 
-    uint16_t msgCount(const char *msg) const;
+    uint16_t clustersPerMessage(const char *msg) const;
 };
 
 

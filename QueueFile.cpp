@@ -21,7 +21,7 @@ QueueFile::~QueueFile() {
 }
 
 void QueueFile::putMsg(char *msg) {
-    auto cnt = msgCount(msg);
+    auto cnt = clustersPerMessage(msg);
     Cluster *chain[cnt];
     chain[0] = new Cluster(mainCluster->header->clusterSize, ClusterType::firstCluster);
     for (int i = 1; i < cnt; i++) {
@@ -47,7 +47,7 @@ void QueueFile::putMsg(char *msg) {
     }
 }
 
-uint16_t QueueFile::msgCount(const char *msg) const {
+uint16_t QueueFile::clustersPerMessage(const char *msg) const {
     uint16_t size = mainCluster->header->clusterSize;
     uint16_t firstHLen = sizeof(FirstClusterHeader);
     uint16_t nextHLen = sizeof(NextClusterHeader);
@@ -55,4 +55,8 @@ uint16_t QueueFile::msgCount(const char *msg) const {
     uint16_t a = (msgLen - (size - firstHLen));
     uint16_t b = size - nextHLen;
     return 1 + a / b + a % b ? 1 : 0;
+}
+
+void QueueFile::takeMsg(uint32_t ptr) {
+
 }

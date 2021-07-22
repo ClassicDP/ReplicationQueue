@@ -9,6 +9,9 @@ uint_fast32_t clusterSize = 256;
 
 int main() {
     char fileName[] = "_123.db";
+//    Cluster*  cl[100];
+//    std::cout << sizeof (cl)<< "\n";
+
     std::cout << sizeof (fileName) << std::endl;
     QueueFile dbFile = QueueFile(fileName, clusterSize);
     dbFile.putMsg(fileName);
