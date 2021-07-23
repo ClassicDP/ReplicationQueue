@@ -4,14 +4,15 @@
 
 int QueueFile::fileDescriptor;
 
-QueueFile::QueueFile(char *fileName, uint32_t clusterSize) {
+QueueFile::QueueFile(char *fileName, uint32_t fileClusterSize) {
+    clusterSize = fileClusterSize;
     remove(fileName);
     fileDescriptor = open(fileName, O_RDWR | O_CREAT, 0777);
-    mainCluster = new MainCluster(clusterSize);
-    mainCluster->header->clusterSize = clusterSize;
-    mainCluster->header->fileSize = clusterSize;
-    mainCluster->header->firstFreePtr = clusterSize;
-    mainCluster->header->firstDataPtr = clusterSize;
+    mainCluster = new MainCluster(fileClusterSize);
+    mainCluster->header->clusterSize = fileClusterSize;
+    mainCluster->header->fileSize = fileClusterSize;
+    mainCluster->header->firstFreePtr = fileClusterSize;
+    mainCluster->header->firstDataPtr = fileClusterSize;
     mainCluster->write(0);
 }
 
@@ -23,9 +24,9 @@ QueueFile::~QueueFile() {
 void QueueFile::putMsg(char *msg) {
     auto cnt = clustersPerMessage(msg);
     Cluster *chain[cnt];
-    chain[0] = new Cluster(mainCluster->header->clusterSize, ClusterType::firstCluster);
+    chain[0] = new Cluster(ClusterType::firstCluster);
     for (int i = 1; i < cnt; i++) {
-        chain[i] = new Cluster(mainCluster->header->clusterSize, ClusterType::nextCluster);
+        chain[i] = new Cluster(ClusterType::nextCluster);
     }
     uint16_t nextPtr = mainCluster->header->firstFreePtr;
     uint32_t msgPtr=0;

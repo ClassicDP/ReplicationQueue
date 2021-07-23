@@ -1,7 +1,9 @@
-//
-// Created by dmitry on 22.07.2021.
-//
 
 #include "QueueFile.h"
 #include <iostream>
 #include "MainCluster.h"
+
+MainCluster::MainCluster(u_int32_t size) : Cluster(size, mainCluster) {
+    header = (MainClusterHeader *) buffer;
+
+}

@@ -13,10 +13,12 @@
 class QueueFile {
 public:
     static int fileDescriptor;
+    static uint32_t clusterSize;
     MainCluster *mainCluster;
 
 
-    QueueFile(char *fileName, uint32_t clusterSize);
+
+    QueueFile(char *fileName, uint32_t fileClusterSize);
 
     ~QueueFile();
 

@@ -10,24 +10,19 @@
 
 
 class Cluster {
-private:
-    ClusterType clusterType;
-
 public:
     Header *header;
     int8_t *buffer;
-    uint32_t size;
 
-    Cluster(int64_t ptr) {
-
-    }
+    Cluster(int64_t ptr);
 
     void setData (char *msg, uint32_t offset);
-    ClusterType *_clusterType();
-    uint32_t *nextClusterPtr();
+    ClusterType *_clusterType() const;
+    uint32_t *nextClusterPtr() const;
+    uint8_t *checksum();
     u_int32_t headerSize();
     u_int32_t dataSize();
-    Cluster(uint32_t size, ClusterType clusterType);
+    Cluster(ClusterType clusterType);
     ~Cluster() {
         delete buffer;
     };

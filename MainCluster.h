@@ -10,10 +10,7 @@ class MainCluster : public Cluster {
 public:
     MainClusterHeader *header;
 
-    MainCluster(u_int32_t size) : Cluster(size, mainCluster) {
-        header = (MainClusterHeader *) buffer;
-
-    }
+    MainCluster(u_int32_t size);
 };
 
 #endif //UNTITLED_MAINCLUSTER_H

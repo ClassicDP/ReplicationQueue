@@ -12,39 +12,59 @@ u_int32_t Cluster::headerSize() {
         return sizeof(NextClusterHeader);
 }
 
-uint32_t *Cluster::nextClusterPtr() {
-    if (clusterType == ClusterType::firstCluster) {
+ClusterType *Cluster::_clusterType() const {
+    return (ClusterType *) buffer;
+}
+
+uint32_t *Cluster::nextClusterPtr() const {
+    if (*_clusterType() == ClusterType::firstCluster) {
         return &(header->firstCluster.nextPtr);
     } else {
         return &(header->nextCluster.nextPtr);
     }
 }
 
-ClusterType *Cluster::_clusterType() {
-    return (ClusterType *) buffer;
+uint8_t *Cluster::checksum() {
+    if (*_clusterType() == ClusterType::firstCluster) {
+        return &(header->firstCluster.checksum);
+    } else {
+        return &(header->nextCluster.checksum);
+    }
 }
 
-Cluster::Cluster(uint32_t size, ClusterType clusterType): size(size) {
-    buffer = new int8_t[size];
+Cluster::Cluster(ClusterType clusterType) {
+    buffer = new int8_t[QueueFile::clusterSize];
     header = (Header *) buffer;
     *_clusterType() = clusterType;
 }
 
 u_int32_t Cluster::dataSize() {
-    return size - headerSize();
+    return QueueFile::clusterSize - headerSize();
 }
 
-void Cluster::write(uint32_t ptr)  {
-    pwrite64(QueueFile::fileDescriptor, buffer, size, ptr);
+void Cluster::write(uint32_t ptr) {
+    pwrite64(QueueFile::fileDescriptor, buffer, QueueFile::clusterSize, ptr);
 }
 
 void Cluster::read(uint32_t ptr) {
-    pread64(QueueFile::fileDescriptor, buffer, size, ptr);
+    pread64(QueueFile::fileDescriptor, buffer, QueueFile::clusterSize, ptr);
 }
 
 void Cluster::setData(char *msg, uint32_t offset) {
-    auto msgLen = sizeof (msg);
+    auto msgLen = sizeof(msg);
     auto restSize = msgLen - offset;
     auto dataLen = dataSize();
-    memcpy (buffer, msg + headerSize(), restSize < dataLen ? restSize : dataLen );
+    *checksum() = 0;
+    u_int32_t _headerSize = headerSize();
+    for (uint32_t i = 0; i<restSize < dataLen ? restSize : dataLen; i++) {
+        auto dataByte = *(msg + _headerSize + i);
+        *checksum()^=dataByte;
+         *(msg + _headerSize + i) = dataByte;
+    }
 }
+
+Cluster::Cluster(int64_t ptr) {
+    read(ptr);
+}
+
+

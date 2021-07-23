@@ -10,11 +10,13 @@ enum ClusterType : unsigned char {
 
 struct FirstClusterHeader {
     ClusterType clusterType;
+    u_int8_t checksum;
     u_int32_t length;
     u_int32_t nextPtr;
 };
 struct NextClusterHeader {
     ClusterType clusterType;
+    u_int8_t checksum;
     u_int32_t nextPtr;
 };
 struct MainClusterHeader {
