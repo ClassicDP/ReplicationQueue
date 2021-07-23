@@ -26,9 +26,17 @@ struct MainClusterHeader {
     u_int32_t toReleasePtr;
     u_int32_t toReleaseClustersCnt;
     u_int32_t firstFreePtr;
-    u_int32_t backUpPtr;
     u_int32_t queueLen;
     u_int32_t clusterSize;
+    u_int32_t backupPtr;
+};
+struct DiskBufHeader {
+    // DiskBuf size
+    u_int32_t size;
+    // cluster size
+    u_int32_t dataSize;
+    // position of cluster in file
+    u_int32_t dataPtr;
 };
 union Header {
     FirstClusterHeader firstCluster;

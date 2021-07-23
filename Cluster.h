@@ -16,13 +16,20 @@ public:
 
     Cluster(int64_t ptr);
 
-    void setData (char *msg, uint32_t offset);
+    void setData(char *msg, uint32_t offset);
+
     ClusterType *_clusterType() const;
+
     uint32_t *nextClusterPtr() const;
+
     uint8_t *checksum();
+
     u_int32_t headerSize();
+
     u_int32_t dataSize();
+
     Cluster(ClusterType clusterType);
+
     ~Cluster() {
         delete buffer;
     };
@@ -31,6 +38,8 @@ public:
     void read(uint32_t ptr);
 
     void write(uint32_t ptr);
+    void safeWrite (uint32_t ptr);
+
 };
 
 

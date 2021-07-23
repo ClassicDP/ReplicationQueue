@@ -11,6 +11,8 @@ public:
     MainClusterHeader *header;
 
     MainCluster(u_int32_t size);
+
+    void write();
 };
 
 #endif //UNTITLED_MAINCLUSTER_H

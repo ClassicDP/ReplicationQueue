@@ -3,6 +3,8 @@
 #include "QueueFile.h"
 
 
+uint32_t QueueFile::clusterSize;
+
 u_int32_t Cluster::headerSize() {
     if (*_clusterType() == ClusterType::mainCluster)
         return sizeof(mainCluster);
@@ -10,6 +12,7 @@ u_int32_t Cluster::headerSize() {
         return sizeof(FirstClusterHeader);
     if (*_clusterType() == ClusterType::nextCluster)
         return sizeof(NextClusterHeader);
+    return 0;
 }
 
 ClusterType *Cluster::_clusterType() const {
@@ -43,6 +46,7 @@ u_int32_t Cluster::dataSize() {
 }
 
 void Cluster::write(uint32_t ptr) {
+
     pwrite64(QueueFile::fileDescriptor, buffer, QueueFile::clusterSize, ptr);
 }
 
@@ -56,15 +60,21 @@ void Cluster::setData(char *msg, uint32_t offset) {
     auto dataLen = dataSize();
     *checksum() = 0;
     u_int32_t _headerSize = headerSize();
-    for (uint32_t i = 0; i<restSize < dataLen ? restSize : dataLen; i++) {
+    for (uint32_t i = 0; i < restSize < dataLen ? restSize : dataLen; i++) {
         auto dataByte = *(msg + _headerSize + i);
-        *checksum()^=dataByte;
-         *(msg + _headerSize + i) = dataByte;
+        *checksum() ^= dataByte;
+        *(msg + _headerSize + i) = dataByte;
     }
 }
 
 Cluster::Cluster(int64_t ptr) {
     read(ptr);
+}
+
+void Cluster::safeWrite(uint32_t ptr) {
+    pwrite64(QueueFile::fileDescriptor, buffer, QueueFile::clusterSize, ptr);
+
+
 }
 
 

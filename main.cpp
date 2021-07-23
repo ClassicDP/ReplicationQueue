@@ -12,6 +12,9 @@ int main() {
 //    Cluster*  cl[100];
 //    std::cout << sizeof (cl)<< "\n";
 
+
+
+
     std::cout << sizeof (fileName) << std::endl;
     QueueFile dbFile = QueueFile(fileName, clusterSize);
     dbFile.putMsg(fileName);

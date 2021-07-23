@@ -8,14 +8,27 @@
 #include "unistd.h"
 #include "Cluster.h"
 #include "MainCluster.h"
+#include "StackList.h"
 
 
 class QueueFile {
 public:
     static int fileDescriptor;
     static uint32_t clusterSize;
+    char *filName;
     MainCluster *mainCluster;
+    StackList<u_int8_t *> stackList;
 
+    void safeWrite(uint32_t ptr, u_int32_t size, u_int8_t *buf = nullptr);
+
+    void safeTruncate(u_int32_t fileSize) {
+        safeWrite(fileSize, mainCluster->header->fileSize - fileSize);
+        fsync(fileDescriptor);
+        truncate(filName, fileSize);
+        safeWriteComplete();
+    }
+
+    void safeWriteComplete();
 
 
     QueueFile(char *fileName, uint32_t fileClusterSize);
@@ -23,6 +36,7 @@ public:
     ~QueueFile();
 
     void putMsg(char *msg);
+
     void takeMsg(uint32_t ptr);
 
     uint16_t clustersPerMessage(const char *msg) const;
