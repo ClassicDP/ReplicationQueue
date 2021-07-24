@@ -56,23 +56,23 @@ void Cluster::read(uint32_t ptr) {
     readFromPtr = ptr;
 }
 
-uint32_t Cluster::setData(char *msg, uint32_t offset) {
-    auto msgLen = sizeof(msg);
+uint32_t Cluster::setData(std::string &msg, uint32_t offset) {
+    auto msgLen = msg.size();
     auto restSize = msgLen - offset;
     auto dataLen = dataSize();
     *checksum() = 0;
     u_int32_t _headerSize = headerSize();
     auto size = restSize < dataLen ? restSize : dataLen;
     for (uint32_t i = 0; i < size; i++) {
-        auto dataByte = *(msg + offset + i);
+        auto dataByte = *(msg.c_str() + offset + i);
         *checksum() ^= dataByte;
         *(buffer + _headerSize + i) = dataByte;
     }
     return size;
 }
 
-uint32_t Cluster::getData(char *msg, uint32_t offset) {
-    auto msgLen = sizeof(msg);
+uint32_t Cluster::getData(std::string &msg, uint32_t offset) {
+    auto msgLen = msg.size();
     auto restSize = msgLen - offset;
     auto dataLen = dataSize();
     auto checkByte = 0;
@@ -81,7 +81,7 @@ uint32_t Cluster::getData(char *msg, uint32_t offset) {
     for (uint32_t i = 0; i < size; i++) {
         auto dataByte = *(buffer + _headerSize + i);
         checkByte ^= dataByte;
-        *(msg + offset + i) = dataByte;
+        msg[offset+i] = dataByte;
     }
     if (checkByte!=*checksum()) throw "File damaged!";
     return size;

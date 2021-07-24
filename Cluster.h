@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <string>
 #include "types.h"
 
 
@@ -17,8 +18,8 @@ public:
 
     Cluster(u_int32_t ptr);
 
-    uint32_t setData(char *msg, uint32_t offset);
-    uint32_t getData(char *msg, uint32_t offset);
+    uint32_t setData(std::__cxx11::basic_string<char> &msg, uint32_t offset);
+    uint32_t getData(std::string &msg, uint32_t offset);
 
 
     ClusterType *_clusterType() const;
