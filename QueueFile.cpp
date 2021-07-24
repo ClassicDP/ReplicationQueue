@@ -16,7 +16,7 @@ QueueFile::QueueFile(char *fileName, uint32_t fileClusterSize) {
     mainCluster->header->clusterSize = fileClusterSize;
     mainCluster->header->fileSize = fileClusterSize;
     mainCluster->header->firstFreePtr = fileClusterSize;
-    mainCluster->header->firstDataPtr = fileClusterSize;
+    mainCluster->header->DataPtr = fileClusterSize;
     mainCluster->header->backupPtr = 0;
     mainCluster->write();
     fsync(fileDescriptor);
@@ -48,6 +48,7 @@ void QueueFile::putMsg(char *msg) {
         *chain[i]->nextClusterPtr() = nextPtr;
         chain[i]->safeWrite();
     }
+    mainCluster->safeWrite();
     safeWriteComplete();
     for (int i = 0; i < cnt; i++) {
         delete chain[i];
@@ -55,7 +56,7 @@ void QueueFile::putMsg(char *msg) {
 }
 
 char *QueueFile::takeMsg() {
-    auto DataPtr = mainCluster->header->firstDataPtr;
+    auto DataPtr = mainCluster->header->DataPtr;
     if (DataPtr == mainCluster->header->fileSize) return nullptr;
     auto cluster = new Cluster(DataPtr);
     auto lenMsg = cluster->header->firstCluster.length;
@@ -77,8 +78,11 @@ char *QueueFile::takeMsg() {
         *chain[endOfInnerChain]->nextClusterPtr() = trancateFrom;
         chain[endOfInnerChain]->safeWrite();
     }
+    mainCluster->header->firstFreePtr = chain[0]->readFromPtr;
+    mainCluster->header->DataPtr = *chain[cnt - 1]->nextClusterPtr();
     mainCluster->safeWrite();
     safeTruncate(trancateFrom);
+    for (int i = 0; i< cnt ; i++) delete chain[i];
     return msg;
 }
 

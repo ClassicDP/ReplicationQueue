@@ -22,7 +22,7 @@ struct NextClusterHeader {
 struct MainClusterHeader {
     ClusterType clusterType;
     u_int32_t fileSize;
-    u_int32_t firstDataPtr;
+    u_int32_t DataPtr;
     u_int32_t toReleasePtr;
     u_int32_t toReleaseClustersCnt;
     u_int32_t firstFreePtr;

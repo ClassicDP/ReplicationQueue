@@ -48,6 +48,7 @@ u_int32_t Cluster::dataSize() {
 
 void Cluster::write(uint32_t ptr) {
         pwrite64(QueueFile::fileDescriptor, buffer, QueueFile::clusterSize, ptr);
+        readFromPtr = ptr;
 }
 
 void Cluster::read(uint32_t ptr) {
@@ -82,7 +83,7 @@ uint32_t Cluster::getData(char *msg, uint32_t offset) {
         checkByte ^= dataByte;
         *(msg + offset + i) = dataByte;
     }
-    if (checkByte!=*checksum()) throw "File damaged";
+    if (checkByte!=*checksum()) throw "File damaged!";
     return size;
 
 }
