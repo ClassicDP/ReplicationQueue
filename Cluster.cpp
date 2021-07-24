@@ -4,6 +4,7 @@
 
 
 uint32_t QueueFile::clusterSize;
+QueueFile * QueueFile::queueFile;
 
 u_int32_t Cluster::headerSize() {
     if (*_clusterType() == ClusterType::mainCluster)
@@ -36,7 +37,7 @@ uint8_t *Cluster::checksum() {
 }
 
 Cluster::Cluster(ClusterType clusterType) {
-    buffer = new int8_t[QueueFile::clusterSize];
+    buffer = new char [QueueFile::clusterSize];
     header = (Header *) buffer;
     *_clusterType() = clusterType;
 }
@@ -46,34 +47,60 @@ u_int32_t Cluster::dataSize() {
 }
 
 void Cluster::write(uint32_t ptr) {
-
-    pwrite64(QueueFile::fileDescriptor, buffer, QueueFile::clusterSize, ptr);
+        pwrite64(QueueFile::fileDescriptor, buffer, QueueFile::clusterSize, ptr);
 }
 
 void Cluster::read(uint32_t ptr) {
     pread64(QueueFile::fileDescriptor, buffer, QueueFile::clusterSize, ptr);
+    readFromPtr = ptr;
 }
 
-void Cluster::setData(char *msg, uint32_t offset) {
+uint32_t Cluster::setData(char *msg, uint32_t offset) {
     auto msgLen = sizeof(msg);
     auto restSize = msgLen - offset;
     auto dataLen = dataSize();
     *checksum() = 0;
     u_int32_t _headerSize = headerSize();
-    for (uint32_t i = 0; i < restSize < dataLen ? restSize : dataLen; i++) {
-        auto dataByte = *(msg + _headerSize + i);
+    auto size = restSize < dataLen ? restSize : dataLen;
+    for (uint32_t i = 0; i < size; i++) {
+        auto dataByte = *(msg + offset + i);
         *checksum() ^= dataByte;
-        *(msg + _headerSize + i) = dataByte;
+        *(buffer + _headerSize + i) = dataByte;
     }
+    return size;
 }
 
-Cluster::Cluster(int64_t ptr) {
+uint32_t Cluster::getData(char *msg, uint32_t offset) {
+    auto msgLen = sizeof(msg);
+    auto restSize = msgLen - offset;
+    auto dataLen = dataSize();
+    auto checkByte = 0;
+    u_int32_t _headerSize = headerSize();
+    auto size = restSize < dataLen ? restSize : dataLen;
+    for (uint32_t i = 0; i < size; i++) {
+        auto dataByte = *(buffer + _headerSize + i);
+        checkByte ^= dataByte;
+        *(msg + offset + i) = dataByte;
+    }
+    if (checkByte!=*checksum()) throw "File damaged";
+    return size;
+
+}
+
+Cluster::Cluster(u_int32_t ptr) {
     read(ptr);
 }
 
 void Cluster::safeWrite(uint32_t ptr) {
-    pwrite64(QueueFile::fileDescriptor, buffer, QueueFile::clusterSize, ptr);
+    QueueFile::queueFile->safeWrite(ptr, QueueFile::clusterSize, buffer);
+}
 
+void Cluster::write() {
+    write(readFromPtr);
+}
+
+void Cluster::safeWrite() {
+    safeWrite(readFromPtr);
 
 }
 

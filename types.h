@@ -30,7 +30,7 @@ struct MainClusterHeader {
     u_int32_t clusterSize;
     u_int32_t backupPtr;
 };
-struct DiskBufHeader {
+struct SafeBufHeader {
     // DiskBuf size
     u_int32_t size;
     // cluster size

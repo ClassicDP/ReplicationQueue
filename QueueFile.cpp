@@ -20,6 +20,7 @@ QueueFile::QueueFile(char *fileName, uint32_t fileClusterSize) {
     mainCluster->header->backupPtr = 0;
     mainCluster->write();
     fsync(fileDescriptor);
+    QueueFile::queueFile = this;
 }
 
 QueueFile::~QueueFile() {
@@ -34,23 +35,51 @@ void QueueFile::putMsg(char *msg) {
     for (int i = 1; i < cnt; i++) {
         chain[i] = new Cluster(ClusterType::nextCluster);
     }
-    uint16_t nextPtr = mainCluster->header->firstFreePtr;
-    uint32_t msgPtr = 0;
+    uint32_t nextPtr = mainCluster->header->firstFreePtr;
+    uint32_t msgOffset = 0;
     for (int i = 0; i < cnt; i++) {
-        uint16_t ptr = nextPtr;
         if (nextPtr != mainCluster->header->fileSize) {
-            nextPtr = *Cluster(ptr).nextClusterPtr();
+            chain[i]->read(nextPtr);
+            nextPtr = *chain[i]->nextClusterPtr();
         } else {
             nextPtr += mainCluster->header->clusterSize;
         }
-        chain[i]->setData(msg, msgPtr);
+        msgOffset += chain[i]->setData(msg, msgOffset);
         *chain[i]->nextClusterPtr() = nextPtr;
-        chain[i]->write(ptr);
-        ptr += chain[i]->dataSize();
+        chain[i]->safeWrite();
     }
+    safeWriteComplete();
     for (int i = 0; i < cnt; i++) {
         delete chain[i];
     }
+}
+
+char *QueueFile::takeMsg() {
+    auto DataPtr = mainCluster->header->firstDataPtr;
+    if (DataPtr == mainCluster->header->fileSize) return nullptr;
+    auto cluster = new Cluster(DataPtr);
+    auto lenMsg = cluster->header->firstCluster.length;
+    auto msg = new char[lenMsg];
+    auto cnt = clustersPerMessage(msg);
+    Cluster *chain[cnt];
+    chain[0] = cluster;
+    auto msgOffset = cluster->setData(msg, 0);
+    for (int i = 1; i < cnt; i++) {
+        chain[i] = new Cluster(*chain[i - 1]->nextClusterPtr());
+        msgOffset += chain[i]->getData(msg, msgOffset);
+    }
+    auto trancateFrom = mainCluster->header->fileSize - mainCluster->header->clusterSize;
+    auto endOfInnerChain = cnt;
+    while (--endOfInnerChain >= 0 && chain[endOfInnerChain]->readFromPtr == trancateFrom)
+        trancateFrom -= mainCluster->header->clusterSize;
+    trancateFrom += mainCluster->header->clusterSize;
+    if (endOfInnerChain < cnt - 1) {
+        *chain[endOfInnerChain]->nextClusterPtr() = trancateFrom;
+        chain[endOfInnerChain]->safeWrite();
+    }
+    mainCluster->safeWrite();
+    safeTruncate(trancateFrom);
+    return msg;
 }
 
 uint16_t QueueFile::clustersPerMessage(const char *msg) const {
@@ -67,42 +96,49 @@ void QueueFile::takeMsg(uint32_t ptr) {
 
 }
 
-void QueueFile::safeWrite(uint32_t ptr, u_int32_t size, u_int8_t *buf) {
+void QueueFile::safeWrite(uint32_t ptr, u_int32_t size, char *buf) {
     u_int32_t fileSize = mainCluster->header->fileSize;
-    // will deleting in .safeWriteComplete()
-    auto diskBuf = new u_int8_t[size + sizeof(DiskBufHeader)];
-    if (mainCluster->header->backupPtr == 0) {
-        mainCluster->header->firstFreePtr = fileSize;
-        mainCluster->header->backupPtr = fileSize;
-        mainCluster->write();
-        fsync(fileDescriptor);
+    auto restFileSize = fileSize - ptr;
+    // if write field of file need to backup
+    if (restFileSize > 0) {
+        // will deleting in .safeWriteComplete()
+        size = (size < restFileSize) ? size : restFileSize;
+        auto diskBuf = new u_int8_t[size + sizeof(SafeBufHeader)];
+        if (mainCluster->header->backupPtr == 0) {
+            mainCluster->header->firstFreePtr = fileSize;
+            mainCluster->header->backupPtr = fileSize;
+            mainCluster->write();
+            fsync(fileDescriptor);
+        }
+        mainCluster->header->fileSize += sizeof(diskBuf);
+        // using diskBuf for backup data
+        pread64(fileDescriptor, diskBuf + sizeof(SafeBufHeader), size, ptr);
+        auto diskBufHeader = (SafeBufHeader *) diskBuf;
+        diskBufHeader->dataSize = size;
+        diskBufHeader->dataPtr = ptr;
+        diskBufHeader->size = sizeof(diskBuf);
+        pwrite64(fileDescriptor, diskBuf, sizeof(diskBuf), fileSize);
+        delete[] diskBuf;
     }
-    mainCluster->header->fileSize += sizeof(diskBuf);
-    // using diskBuf for backing data
-    pread64(fileDescriptor, diskBuf + sizeof(DiskBufHeader), size, ptr);
-    auto diskBufHeader = (DiskBufHeader *) diskBuf;
-    diskBufHeader->dataSize = size;
-    diskBufHeader->dataPtr = ptr;
-    diskBufHeader->size = sizeof(diskBuf);
-    pwrite64(fileDescriptor, diskBuf, sizeof(diskBuf), fileSize);
-    // using same diskBuf for stacking data to future write (after backup old data)
+    // using same memBuf for stacking data to future write
     if (buf) {
-        // that is, it (diskBuf) is used for two purposes
-        memcpy(diskBuf + sizeof(DiskBufHeader), buf, size);
-        stackList.push(diskBuf);
+        auto memBuf = new u_int8_t[size + sizeof(SafeBufHeader)];
+        memcpy(memBuf + sizeof(SafeBufHeader), buf, size);
+        stackList.push(memBuf);
     }
     mainCluster->write();
     fsync(fileDescriptor);
 }
 
 void QueueFile::safeWriteComplete() {
-    while (auto buffer = stackList.pop()) {
-        auto diskBufHeader = (DiskBufHeader *) buffer;
-        pwrite64(fileDescriptor, buffer + sizeof(DiskBufHeader),
+    while (auto memBuf = stackList.pop()) {
+        auto diskBufHeader = (SafeBufHeader *) memBuf;
+        pwrite64(fileDescriptor, memBuf + sizeof(SafeBufHeader),
                  diskBufHeader->dataSize, diskBufHeader->dataPtr);
         // was created in .safeWrite()
-        delete[] buffer;
+        delete[] memBuf;
     }
+    fsync(fileDescriptor);
 
     mainCluster->header->fileSize = mainCluster->header->backupPtr;
     mainCluster->header->backupPtr = 0;
@@ -111,4 +147,11 @@ void QueueFile::safeWriteComplete() {
 
     // safeWriteComplete disk operations!!
 
+}
+
+void QueueFile::safeTruncate(u_int32_t fileSize) {
+    mainCluster->header->fileSize = fileSize;
+    mainCluster->safeWrite(0);
+    safeWriteComplete();
+    truncate(filName, fileSize);
 }

@@ -11,12 +11,15 @@
 
 class Cluster {
 public:
+    uint32_t readFromPtr;
     Header *header;
-    int8_t *buffer;
+    char *buffer;
 
-    Cluster(int64_t ptr);
+    Cluster(u_int32_t ptr);
 
-    void setData(char *msg, uint32_t offset);
+    uint32_t setData(char *msg, uint32_t offset);
+    uint32_t getData(char *msg, uint32_t offset);
+
 
     ClusterType *_clusterType() const;
 
@@ -38,7 +41,10 @@ public:
     void read(uint32_t ptr);
 
     void write(uint32_t ptr);
+    void write();
+
     void safeWrite (uint32_t ptr);
+    void safeWrite ();
 
 };
 
