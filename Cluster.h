@@ -8,13 +8,14 @@
 #include <cstring>
 #include <string>
 #include "types.h"
+#include "DynamicArray.h"
 
 
 class Cluster {
 public:
-    uint32_t readFromPtr;
+    uint32_t clusterPtr;
     Header *header;
-    char *buffer;
+    DynamicArray <char> * buffer;
 
     Cluster(u_int32_t ptr);
 
@@ -43,9 +44,6 @@ public:
 
     void write(uint32_t ptr);
     void write();
-
-    void safeWrite (uint32_t ptr);
-    void safeWrite ();
 
 };
 

@@ -16,6 +16,9 @@ int main() {
     std::string msg = "123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_";
     auto ll = xx(msg);
     auto l1 = msg.length();
+    auto xx = new SaveCluster;
+    auto xl = sizeof (SaveCluster);
+    auto v = sizeof (void *);
     QueueFile dbFile = QueueFile(fileName, clusterSize);
     dbFile.putMsg(msg);
     std::cout << dbFile.takeMsg();

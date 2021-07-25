@@ -10,9 +10,32 @@
 #include "Cluster.h"
 #include "MainCluster.h"
 #include "StackList.h"
+#include "DynamicArray.h"
+
+struct SaveClusterHeader {
+    // DiskBuf saveClasterSize
+    u_int32_t saveClasterSize;
+    // cluster saveClasterSize
+    u_int32_t saveDataSize;
+    // position of cluster in file
+    u_int32_t dataPtr;
+};
+class SaveCluster {
+public:
+    SaveClusterHeader * header;
+    char * buf;
+    uint32_t write(uint32_t ptr);
+
+    SaveCluster(uint32_t ptr, uint32_t size);
+    SaveCluster(uint32_t ptr);
+    void restore();
+    ~SaveCluster();
+};
 
 
 class QueueFile {
+    uint32_t newClustersPtr;
+    uint32_t freeClustersPtr;
 public:
     static int fileDescriptor;
     static uint32_t clusterSize;
@@ -21,7 +44,7 @@ public:
     MainCluster *mainCluster;
     StackList<u_int8_t *> stackList;
 
-    void safeWrite(uint32_t ptr, u_int32_t dataSize, char *buf = nullptr);
+    void safeWrite();
 
     void safeTruncate(u_int32_t fileSize);
 
@@ -33,11 +56,14 @@ public:
     ~QueueFile();
 
     void putMsg(std::string &msg);
+
     std::string takeMsg();
 
     void takeMsg(uint32_t ptr);
 
     uint16_t clustersPerMessage(std::string &msg) const;
+
+    void safeWrite(DynamicArray<Cluster *> &chain);
 };
 
 
