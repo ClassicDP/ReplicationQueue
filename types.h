@@ -11,7 +11,7 @@ enum ClusterType : unsigned char {
 struct FirstClusterHeader {
     ClusterType clusterType;
     u_int8_t checksum;
-    u_int32_t length;
+    u_int32_t lenMsg;
     u_int32_t nextPtr;
 };
 struct NextClusterHeader {
@@ -23,8 +23,6 @@ struct MainClusterHeader {
     ClusterType clusterType;
     u_int32_t fileSize;
     u_int32_t DataPtr;
-    u_int32_t toReleasePtr;
-    u_int32_t toReleaseClustersCnt;
     u_int32_t firstFreePtr;
     u_int32_t queueLen;
     u_int32_t clusterSize;

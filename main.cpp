@@ -11,17 +11,16 @@ int xx(std::string &x  ) {
 }
 
 int main() {
-    char fileName[] = "_123.db";
+    char const * fileName = "_123.db";
+    char const * str = "123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_";
+    auto msg = DynamicArray<char>(str);
 
-    std::string msg = "123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_";
-    auto ll = xx(msg);
-    auto l1 = msg.length();
-    auto xx = new SaveCluster;
+
     auto xl = sizeof (SaveCluster);
     auto v = sizeof (void *);
     QueueFile dbFile = QueueFile(fileName, clusterSize);
     dbFile.putMsg(msg);
-    std::cout << dbFile.takeMsg();
+    std::cout << dbFile.takeMsg().data;
     std::cout << sizeof(mainCluster) << "\n"
               << sizeof(FirstClusterHeader) << "\n";
 

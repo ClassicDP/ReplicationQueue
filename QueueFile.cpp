@@ -8,7 +8,7 @@
 int QueueFile::fileDescriptor;
 
 
-QueueFile::QueueFile(char *fileName, uint32_t fileClusterSize) {
+QueueFile::QueueFile(char const *fileName, uint32_t fileClusterSize) {
     this->filName = fileName;
     clusterSize = fileClusterSize;
     remove(fileName);
@@ -29,10 +29,9 @@ QueueFile::~QueueFile() {
     delete mainCluster;
 }
 
-void QueueFile::putMsg(std::string &msg) {
+void QueueFile::putMsg(DynamicArray<char> &msg) {
     auto cnt = clustersPerMessage(msg);
     DynamicArray<Cluster *> chain(cnt);
-//    Cluster *chain[cnt];
     uint32_t msgOffset = 0;
     chain[0] = new Cluster(ClusterType::firstCluster);
     msgOffset += chain[0]->setData(msg, msgOffset);
@@ -40,48 +39,50 @@ void QueueFile::putMsg(std::string &msg) {
         chain[i] = new Cluster(ClusterType::nextCluster);
         msgOffset += chain[i]->setData(msg, msgOffset);
     }
-
+    safeWrite(chain);
+    for (int  i = 0; i< cnt; i++) {
+        delete chain[i];
+    }
 }
 
-std::string QueueFile::takeMsg() {
+DynamicArray<char> QueueFile::takeMsg() {
     auto DataPtr = mainCluster->header->DataPtr;
-    if (DataPtr == mainCluster->header->fileSize) return "";
+    if (DataPtr == mainCluster->header->fileSize) return DynamicArray<char>((uint32_t)0);
     auto cluster = new Cluster(DataPtr);
-    auto lenMsg = cluster->header->firstCluster.length;
-    std::string msg;
-    msg.reserve(lenMsg);
+    auto lenMsg = cluster->header->firstCluster.lenMsg;
+    DynamicArray<char> msg(lenMsg);
     auto cnt = clustersPerMessage(msg);
-    Cluster *chain[cnt];
+    DynamicArray<Cluster *> chain(cnt);
     chain[0] = cluster;
-    auto msgOffset = cluster->setData(msg, 0);
+    auto msgOffset = cluster->getData(msg, 0);
     for (int i = 1; i < cnt; i++) {
         chain[i] = new Cluster(*chain[i - 1]->nextClusterPtr());
         msgOffset += chain[i]->getData(msg, msgOffset);
     }
     auto trancateFrom = mainCluster->header->fileSize - mainCluster->header->clusterSize;
-    auto endOfInnerChain = cnt;
-    while (--endOfInnerChain >= 0 && chain[endOfInnerChain]->clusterPtr == trancateFrom)
+    auto lastInside = cnt;
+    while (--lastInside >= 0 && chain[lastInside]->clusterPtr == trancateFrom)
         trancateFrom -= mainCluster->header->clusterSize;
     trancateFrom += mainCluster->header->clusterSize;
-    if (endOfInnerChain < cnt - 1) {
-        *chain[endOfInnerChain]->nextClusterPtr() = trancateFrom;
-//        chain[endOfInnerChain]->safeWrite();
+    if (lastInside < cnt - 1) {
+        *chain[lastInside]->nextClusterPtr() = trancateFrom;
     }
     mainCluster->header->firstFreePtr = chain[0]->clusterPtr;
     mainCluster->header->DataPtr = *chain[cnt - 1]->nextClusterPtr();
-//    mainCluster->safeWrite();
-    safeTruncate(trancateFrom);
+    mainCluster->write();
+    fsync(QueueFile::fileDescriptor);
+    truncate(filName, trancateFrom);
     for (int i = 0; i < cnt; i++) delete chain[i];
     return msg;
 }
 
-uint16_t QueueFile::clustersPerMessage(std::string &msg) const {
-    uint16_t size = mainCluster->header->clusterSize;
-    uint16_t firstHLen = sizeof(FirstClusterHeader);
-    uint16_t nextHLen = sizeof(NextClusterHeader);
-    uint16_t msgLen = msg.size();
-    uint16_t a = (msgLen - (size - firstHLen));
-    uint16_t b = size - nextHLen;
+uint32_t QueueFile::clustersPerMessage(DynamicArray<char> &msg) const {
+    uint32_t size = mainCluster->header->clusterSize;
+    uint32_t firstHLen = sizeof(FirstClusterHeader);
+    uint32_t nextHLen = sizeof(NextClusterHeader);
+    uint32_t msgLen = msg.size;
+    uint32_t a = (msgLen - (size - firstHLen));
+    uint32_t b = size - nextHLen;
     return 1 + a / b + (a % b ? 1 : 0);
 }
 
@@ -93,7 +94,6 @@ void QueueFile::safeWrite(DynamicArray<Cluster *> &chain) {
     newClustersPtr = mainCluster->header->fileSize;
     freeClustersPtr = mainCluster->header->firstFreePtr;
     int lastInside;
-    auto backupStack = new StackList<Cluster *>;
     for (int i = 0; i < chain.size; i++) {
         if (freeClustersPtr < mainCluster->header->fileSize) {
             auto cluster = new Cluster(freeClustersPtr);
@@ -101,46 +101,38 @@ void QueueFile::safeWrite(DynamicArray<Cluster *> &chain) {
             freeClustersPtr = *cluster->nextClusterPtr();
             *chain[i]->nextClusterPtr() = freeClustersPtr;
             lastInside = i;
-            backupStack->push(cluster);
+            delete cluster;
         } else {
             chain[i]->clusterPtr = newClustersPtr;
             newClustersPtr += clusterSize;
             *chain[i]->nextClusterPtr() = newClustersPtr;
         }
     }
+    uint32_t saveClusterPtr;
     for (auto i = lastInside + 1; i < chain.size; i++) {
-//        chain[i].
+        saveClusterPtr = chain[i]->write();
     }
-}
-
-void QueueFile::safeWriteComplete() {
-    auto fileSize = mainCluster->header->fileSize;
-    while (auto memBuf = stackList.pop()) {
-        auto diskBufHeader = (SaveCluster *) memBuf;
-        pwrite64(fileDescriptor, memBuf + sizeof(SaveCluster),
-                 diskBufHeader->dataSize, diskBufHeader->dataPtr);
-        auto fSize = diskBufHeader->dataSize + diskBufHeader->dataPtr;
-        fileSize = fileSize > fSize ? fileSize : fSize;
-        // was created in .safeWrite()
-        delete[] memBuf;
+    mainCluster->header->backupPtr = saveClusterPtr;
+    for (auto i = 0; i <= lastInside; i++) {
+        auto saveCluster = new SaveCluster(chain[i]->clusterPtr, clusterSize);
+        saveClusterPtr = saveCluster->write(saveClusterPtr);
+        delete saveCluster;
     }
-    fsync(fileDescriptor);
-
-    mainCluster->header->fileSize = fileSize;
-    mainCluster->header->backupPtr = 0;
     mainCluster->write();
-    fsync(fileDescriptor);
-
-    // safeWriteComplete disk operations!!
-
+    fsync(QueueFile::fileDescriptor);
+    for (auto i = 0; i <= lastInside; i++) {
+        chain[i]->write();
+    }
+    mainCluster->header->fileSize = mainCluster->header->backupPtr;
+    mainCluster->header->backupPtr = 0;
+    mainCluster->header->queueLen++;
+    mainCluster->write();
+    fsync(QueueFile::fileDescriptor);
+    truncate(filName, mainCluster->header->fileSize);
 }
 
-void QueueFile::safeTruncate(u_int32_t fileSize) {
-    mainCluster->header->fileSize = fileSize;
-//    mainCluster->safeWrite(0);
-    safeWriteComplete();
-    truncate(filName, fileSize);
-}
+
+
 
 uint32_t SaveCluster::write(uint32_t ptr) {
     pwrite64(QueueFile::fileDescriptor, buf, header->saveClasterSize, ptr);
@@ -170,5 +162,6 @@ SaveCluster::SaveCluster(uint32_t ptr) {
 }
 
 void SaveCluster::restore() {
-    pwrite64(QueueFile::fileDescriptor, buf + sizeof(SaveClusterHeader), header->saveDataSize, header->dataPtr);
+    pwrite64(QueueFile::fileDescriptor, buf + sizeof(SaveClusterHeader),
+             header->saveDataSize, header->dataPtr);
 }

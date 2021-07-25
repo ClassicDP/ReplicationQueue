@@ -19,8 +19,8 @@ public:
 
     Cluster(u_int32_t ptr);
 
-    uint32_t setData(std::__cxx11::basic_string<char> &msg, uint32_t offset);
-    uint32_t getData(std::string &msg, uint32_t offset);
+    uint32_t setData(DynamicArray<char> &msg, uint32_t offset);
+    uint32_t getData(DynamicArray<char> &msg, uint32_t offset);
 
 
     ClusterType *_clusterType() const;
@@ -42,8 +42,8 @@ public:
 
     void read(uint32_t ptr);
 
-    void write(uint32_t ptr);
-    void write();
+    uint32_t write(uint32_t ptr);
+    unsigned int write();
 
 };
 

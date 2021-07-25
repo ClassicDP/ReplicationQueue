@@ -40,30 +40,23 @@ public:
     static int fileDescriptor;
     static uint32_t clusterSize;
     static QueueFile *queueFile;
-    char *filName;
+    char const * filName;
     MainCluster *mainCluster;
     StackList<u_int8_t *> stackList;
 
-    void safeWrite();
-
-    void safeTruncate(u_int32_t fileSize);
-
-    void safeWriteComplete();
-
-
-    QueueFile(char *fileName, uint32_t fileClusterSize);
+    QueueFile(char const *fileName, uint32_t fileClusterSize);
 
     ~QueueFile();
 
-    void putMsg(std::string &msg);
+    void putMsg(DynamicArray<char> &msg);
 
-    std::string takeMsg();
+    DynamicArray<char> takeMsg();
 
     void takeMsg(uint32_t ptr);
 
-    uint16_t clustersPerMessage(std::string &msg) const;
-
     void safeWrite(DynamicArray<Cluster *> &chain);
+
+    uint32_t clustersPerMessage(DynamicArray<char> &msg) const;
 };
 
 
