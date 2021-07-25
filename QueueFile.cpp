@@ -34,15 +34,16 @@ void QueueFile::putMsg(DynamicArray<char> &msg) {
     DynamicArray<Cluster *> chain(cnt);
     uint32_t msgOffset = 0;
     chain[0] = new Cluster(ClusterType::firstCluster);
+    chain[0]->header->firstCluster.lenMsg = msg.size;
     msgOffset += chain[0]->setData(msg, msgOffset);
     for (int i = 1; i < cnt; i++) {
         chain[i] = new Cluster(ClusterType::nextCluster);
         msgOffset += chain[i]->setData(msg, msgOffset);
     }
     safeWrite(chain);
-    for (int  i = 0; i< cnt; i++) {
-        delete chain[i];
-    }
+//    for (int  i = 0; i< cnt; i++) {
+//        delete (chain[i]);
+//    }
 }
 
 DynamicArray<char> QueueFile::takeMsg() {
@@ -93,7 +94,7 @@ void QueueFile::takeMsg(uint32_t ptr) {
 void QueueFile::safeWrite(DynamicArray<Cluster *> &chain) {
     newClustersPtr = mainCluster->header->fileSize;
     freeClustersPtr = mainCluster->header->firstFreePtr;
-    int lastInside;
+    auto lastInside = -1;
     for (int i = 0; i < chain.size; i++) {
         if (freeClustersPtr < mainCluster->header->fileSize) {
             auto cluster = new Cluster(freeClustersPtr);

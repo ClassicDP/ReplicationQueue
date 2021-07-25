@@ -90,12 +90,18 @@ uint32_t Cluster::getData(DynamicArray<char> &msg, uint32_t offset) {
 }
 
 Cluster::Cluster(u_int32_t ptr) {
+    buffer = new DynamicArray<char>(QueueFile::clusterSize);
+    header = (Header *) buffer;
     read(ptr);
 }
 
 
 unsigned int Cluster::write() {
    return write(clusterPtr);
+}
+
+Cluster::~Cluster() {
+    delete buffer;
 }
 
 

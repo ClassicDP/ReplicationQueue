@@ -35,9 +35,7 @@ public:
 
     Cluster(ClusterType clusterType);
 
-    ~Cluster() {
-        delete buffer;
-    };
+    ~Cluster();;
 
 
     void read(uint32_t ptr);
