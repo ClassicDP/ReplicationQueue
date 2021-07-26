@@ -40,7 +40,7 @@ public:
     static int fileDescriptor;
     static uint32_t clusterSize;
     static QueueFile *queueFile;
-    char const * filName;
+    char const * fileName;
     MainCluster *mainCluster;
     StackList<u_int8_t *> stackList;
 
@@ -48,9 +48,9 @@ public:
 
     ~QueueFile();
 
-    void putMsg(DynamicArray<char> &msg);
+    void putMsg(DynamicArray<char> *msg);
 
-    DynamicArray<char> takeMsg();
+    DynamicArray<char> * takeMsg();
 
     void takeMsg(uint32_t ptr);
 

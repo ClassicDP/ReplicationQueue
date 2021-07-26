@@ -57,23 +57,23 @@ void Cluster::read(uint32_t ptr) {
     clusterPtr = ptr;
 }
 
-uint32_t Cluster::setData(DynamicArray<char> &msg, uint32_t offset) {
-    auto msgLen = msg.size;
+uint32_t Cluster::setData(DynamicArray<char> *msg, uint32_t offset) {
+    auto msgLen = msg->size;
     auto restSize = msgLen - offset;
     auto dataLen = dataSize();
     *checksum() = 0;
     u_int32_t _headerSize = headerSize();
     auto size = restSize < dataLen ? restSize : dataLen;
     for (uint32_t i = 0; i < size; i++) {
-        auto dataByte = *(msg.data + offset + i);
+        auto dataByte = (*msg)[offset + i];
         *checksum() ^= dataByte;
         *(buffer->data + _headerSize + i) = dataByte;
     }
     return size;
 }
 
-uint32_t Cluster::getData(DynamicArray<char> &msg, uint32_t offset) {
-    auto msgLen = msg.size;
+uint32_t Cluster::getData(DynamicArray<char> *msg, uint32_t offset) {
+    auto msgLen = msg->size;
     auto restSize = msgLen - offset;
     auto dataLen = dataSize();
     auto checkByte = 0;
@@ -82,7 +82,7 @@ uint32_t Cluster::getData(DynamicArray<char> &msg, uint32_t offset) {
     for (uint32_t i = 0; i < size; i++) {
         auto dataByte = *(buffer->data + _headerSize + i);
         checkByte ^= dataByte;
-        msg[offset + i] = dataByte;
+        (*msg)[offset + i] = dataByte;
     }
     if (checkByte != *checksum()) throw "File damaged!";
     return size;

@@ -19,8 +19,8 @@ public:
 
     Cluster(u_int32_t ptr);
 
-    uint32_t setData(DynamicArray<char> &msg, uint32_t offset);
-    uint32_t getData(DynamicArray<char> &msg, uint32_t offset);
+    uint32_t setData(DynamicArray<char> *msg, uint32_t offset);
+    uint32_t getData(DynamicArray<char> *msg, uint32_t offset);
 
 
     ClusterType *_clusterType() const;

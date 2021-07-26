@@ -19,8 +19,8 @@ int main() {
     auto xl = sizeof (SaveCluster);
     auto v = sizeof (void *);
     QueueFile dbFile = QueueFile(fileName, clusterSize);
-    dbFile.putMsg(msg);
-    std::cout << dbFile.takeMsg().data;
+    dbFile.putMsg(&msg);
+    std::cout << dbFile.takeMsg()->data;
     std::cout << sizeof(mainCluster) << "\n"
               << sizeof(FirstClusterHeader) << "\n";
 
