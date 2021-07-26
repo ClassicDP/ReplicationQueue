@@ -17,7 +17,7 @@ u_int32_t Cluster::headerSize() {
 }
 
 ClusterType *Cluster::_clusterType() const {
-    return (ClusterType *) buffer;
+    return (ClusterType *) buffer->data;
 }
 
 uint32_t *Cluster::nextClusterPtr() const {
@@ -38,7 +38,7 @@ uint8_t *Cluster::checksum() {
 
 Cluster::Cluster(ClusterType clusterType) {
     buffer = new DynamicArray<char>(QueueFile::clusterSize);
-    header = (Header *) buffer;
+    header = (Header *) buffer->data;
     *_clusterType() = clusterType;
 }
 
@@ -47,13 +47,13 @@ u_int32_t Cluster::dataSize() {
 }
 
 uint32_t Cluster::write(uint32_t ptr) {
-    pwrite64(QueueFile::fileDescriptor, buffer, QueueFile::clusterSize, ptr);
+    pwrite64(QueueFile::fileDescriptor, buffer->data, QueueFile::clusterSize, ptr);
     clusterPtr = ptr;
     return ptr + QueueFile::clusterSize;
 }
 
 void Cluster::read(uint32_t ptr) {
-    pread64(QueueFile::fileDescriptor, buffer, QueueFile::clusterSize, ptr);
+    pread64(QueueFile::fileDescriptor, buffer->data, QueueFile::clusterSize, ptr);
     clusterPtr = ptr;
 }
 
@@ -91,7 +91,7 @@ uint32_t Cluster::getData(DynamicArray<char> &msg, uint32_t offset) {
 
 Cluster::Cluster(u_int32_t ptr) {
     buffer = new DynamicArray<char>(QueueFile::clusterSize);
-    header = (Header *) buffer;
+    header = (Header *) buffer->data;
     read(ptr);
 }
 
