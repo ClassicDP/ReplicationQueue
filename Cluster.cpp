@@ -8,7 +8,7 @@ QueueFile *QueueFile::queueFile;
 
 u_int32_t Cluster::headerSize() {
     if (*_clusterType() == ClusterType::mainCluster)
-        return sizeof(mainCluster);
+        return sizeof(MainClusterHeader);
     if (*_clusterType() == ClusterType::firstCluster)
         return sizeof(FirstClusterHeader);
     if (*_clusterType() == ClusterType::nextCluster)

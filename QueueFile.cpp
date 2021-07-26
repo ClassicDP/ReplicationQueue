@@ -41,9 +41,9 @@ void QueueFile::putMsg(DynamicArray<char> &msg) {
         msgOffset += chain[i]->setData(msg, msgOffset);
     }
     safeWrite(chain);
-//    for (int  i = 0; i< cnt; i++) {
-//        delete (chain[i]);
-//    }
+    for (int  i = 0; i< cnt; i++) {
+        delete (chain[i]);
+    }
 }
 
 DynamicArray<char> QueueFile::takeMsg() {
